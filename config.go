@@ -11,14 +11,13 @@ package config
 import (
 	"errors"
 	"fmt"
-	"strings"
 
 	"aahframework.org/essentials.v0"
 	"aahframework.org/forge.v0"
 )
 
 // Version no. of aahframework.org/config library
-var Version = "0.2"
+var Version = "0.3"
 
 // Config handles the configuration values and enables environment profile's,
 // merge, etc. Also it provide nice and handly methods for accessing config values.
@@ -229,8 +228,7 @@ func (c *Config) StringList(key string) ([]string, bool) {
 	}
 
 	for idx := 0; idx < lst.Length(); idx++ {
-		v, err := lst.GetString(idx)
-		if err == nil {
+		if v, err := lst.GetString(idx); err == nil {
 			values = append(values, v)
 		}
 	}
@@ -238,22 +236,70 @@ func (c *Config) StringList(key string) ([]string, bool) {
 	return values, true
 }
 
-func (c *Config) getListValue(key string) (*forge.List, bool) {
-	value, found := c.getraw(c.prepareKey(key))
-	if !found {
-		return nil, found
+// IntList method returns the int slice value for the given key.
+// 		Eaxmple:-
+//
+// 		Config:
+// 			...
+// 			int_list = [10, 20, 30, 40, 50]
+// 			...
+//
+// 		Accessing Values:
+// 			values, found := cfg.IntList("int_list")
+// 			fmt.Println("Found:", found)
+// 			fmt.Println("Values:", values)
+//
+// 		Output:
+// 			Found: true
+// 			Values: [10, 20, 30, 40, 50]
+//
+func (c *Config) IntList(key string) ([]int, bool) {
+	values := []int{}
+	lst, found := c.getListValue(key)
+	if lst == nil || !found {
+		return values, found
 	}
 
-	if value.GetType() != forge.LIST {
-		return nil, false
+	for idx := 0; idx < lst.Length(); idx++ {
+		if v, err := lst.GetInteger(idx); err == nil {
+			values = append(values, int(v))
+		}
 	}
 
-	lst, ok := value.(*forge.List)
-	if !ok {
-		return nil, false
+	return values, true
+}
+
+// Int64List method returns the int64 slice value for the given key.
+// 		Eaxmple:-
+//
+// 		Config:
+// 			...
+// 			int64_list = [100000001, 100000002, 100000003, 100000004, 100000005]
+// 			...
+//
+// 		Accessing Values:
+// 			values, found := cfg.Int64List("excludes")
+// 			fmt.Println("Found:", found)
+// 			fmt.Println("Values:", values)
+//
+// 		Output:
+// 			Found: true
+// 			Values: [100000001, 100000002, 100000003, 100000004, 100000005]
+//
+func (c *Config) Int64List(key string) ([]int64, bool) {
+	values := []int64{}
+	lst, found := c.getListValue(key)
+	if lst == nil || !found {
+		return values, found
 	}
 
-	return lst, true
+	for idx := 0; idx < lst.Length(); idx++ {
+		if v, err := lst.GetInteger(idx); err == nil {
+			values = append(values, v)
+		}
+	}
+
+	return values, true
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -386,10 +432,10 @@ func ParseString(cfg string) (*Config, error) {
 //___________________________________
 
 func (c *Config) prepareKey(key string) string {
-	if len(strings.TrimSpace(c.profile)) == 0 {
-		return key
+	if c.IsProfileEnabled() {
+		return fmt.Sprintf("%s.%s", c.profile, key)
 	}
-	return fmt.Sprintf("%s.%s", c.profile, key)
+	return key
 }
 
 func (c *Config) getByProfile(key string) (interface{}, bool) {
@@ -402,6 +448,27 @@ func (c *Config) get(key string) (interface{}, bool) {
 	}
 
 	return nil, false // not found
+}
+
+func (c *Config) getListValue(key string) (*forge.List, bool) {
+	value, found := c.getraw(c.prepareKey(key))
+	if !found {
+		value, found = c.getraw(key)
+		if !found {
+			return nil, found
+		}
+	}
+
+	if value.GetType() != forge.LIST {
+		return nil, false
+	}
+
+	lst, ok := value.(*forge.List)
+	if !ok {
+		return nil, false
+	}
+
+	return lst, true
 }
 
 func (c *Config) getraw(key string) (forge.Value, bool) {
